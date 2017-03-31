@@ -13,12 +13,13 @@ void print_help();
 void parse_argv(int size, char ** argv, vector<string>*args, vector<string>* opts);
 string get_path();
 bool confirm(string message);
+int get_file_status(string & path);
 
 /*
  * Constants
  */
-const int OPTIONS_SIZE = 3;
 
+const int OPTIONS_SIZE = 3;
 const string OPTIONS[OPTIONS_SIZE] = {
         "-f",
         "-h",
@@ -77,9 +78,24 @@ bool confirm(string message){
     return answer.compare("y") == 0;
 }
 
+/* Check status of file: whether it dir, not dir or does not exist
+ * @param path Full path of the file
+ * @return code of status 1 - directory, 0 - file, -1 - does not exist
+ */
+
+int get_file_status(string & path){
+    struct stat info;
+
+    if(stat( path.c_str(), &info ) != 0) {
+        return -1;
+    } else if(info.st_mode & S_IFDIR){
+        return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
     string path;
-    struct stat info;
     vector<string> args;
     vector<string> opts;
     bool f_option = false;
@@ -103,7 +119,7 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
     else if(args.size() == 2){
-        int result;
+        int status;
         string full_path1;
         string full_path2;
 
@@ -111,70 +127,62 @@ int main(int argc, char **argv) {
         full_path1 = path + args.at(0);
         full_path2 = path + args.at(1);
 
-        if( stat( full_path2.c_str(), &info ) != 0 ){
-            printf( "cannot access %s\n", full_path2.c_str() );
+
+        if( get_file_status(full_path1) == -1){
+            printf("mv: cannot stat '%s': No such file or directory\n",args.at(0).c_str());
+            return EXIT_FAILURE;
         }
-        else if( info.st_mode & S_IFDIR ) { // S_ISDIR() doesn't exist on my windows
-            printf( "%s is a directory\n", full_path2.c_str() );
+
+
+        status = get_file_status(full_path2);
+        if ( status == 1 ) {
             full_path2 = path + args.at(1) + "/" + args.at(0);
-        }
-        else {
-            printf( "%s is no directory\n", full_path2.c_str() );
-            if(!confirm("Would you like to re-write file?")) {
+        } else if(status == 0) {
+            printf("mv: File with name '%s' already exist\n", args.at(1).c_str());
+            if( !f_option && !confirm("Would you like to re-write file?") ){  // file is not dir and silent mode switch off
                 exit(EXIT_SUCCESS);
             }
         }
-        result = rename( full_path1.c_str() , full_path2.c_str());
-        printf("result %d", result);
+
+        rename( full_path1.c_str() , full_path2.c_str());
     }
-    /*else{
+    else{
         string full_path1;
         string full_path2;
 
         path = get_path();
         printf("more then 2 args\n");
 
+        full_path2 = path + args.at(args.size() - 1);
+
+        if(get_file_status(full_path2) != 1) {
+            printf("mv: cannot stat '%s': No such directory\n",args.at(args.size() - 1).c_str());
+            return EXIT_FAILURE;
+        }
 
 
-
-        for(unsigned long i = 0; i <args.size() -1; i++){
+        for(unsigned long i = 0; i < args.size() - 1; i++){
             full_path1 = path + args.at(i);
             full_path2 = path + args.at(args.size() - 1) +"/"+ args.at(i);
 
             printf("string1: %s\n", full_path1.c_str());
             printf("string2: %s\n", full_path2.c_str());
-            in = fopen( full_path1.c_str(), "r" );
-            out = fopen( full_path2.c_str(), "r" );
 
-            if(in==NULL)
-            {
-                printf("cp: cannot stat '%s': No such file or directory\n",args.at(i).c_str());
-                return EXIT_FAILURE;
+            if( get_file_status(full_path1) == -1){
+                printf("mv: cannot stat '%s': No such file or directory\n",args.at(i).c_str());
+                continue;
             }
 
-            if(out != NULL && !f_option){
-                printf("cp: File with name '%s' already exist\n", (args.at(args.size() - 1)+"/"+args.at(i)).c_str());
-
-                if(!confirm("Would you like to re-write file?")) {
+            if(get_file_status(full_path2) != -1){
+                printf("mv: File with name '%s' already exist\n", args.at(i).c_str());
+                if( !f_option && !confirm("Would you like to re-write file?") ) {  // file exists and silent mode switch off
                     continue;
                 }
-
             }
 
-            out = fopen( full_path2.c_str(), "w" );
-
-            if(out == NULL){
-                printf("cp: target '%s' is not a directory\n", args.at(args.size() - 1).c_str());
-                return EXIT_FAILURE;
-            }
-
-            while((c=getc(in))!=EOF)
-                putc(c,out);
-
-            fclose(in);
-            fclose(out);
+            rename( full_path1.c_str() , full_path2.c_str());
         }
-    }*/
+    }
 
     return EXIT_SUCCESS;
 }
