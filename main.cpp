@@ -63,7 +63,6 @@ string get_path(){
     if (path) {
         s_cwd = path;
         s_cwd += "/";
-        printf("current path: %s \n", s_cwd.c_str());
         return s_cwd;
     } else {
         printf("mv: cannot determine current directory\n");
@@ -151,7 +150,6 @@ int main(int argc, char **argv) {
         string full_path2;
 
         path = get_path();
-        printf("more then 2 args\n");
 
         full_path2 = path + args.at(args.size() - 1);
 
@@ -164,9 +162,6 @@ int main(int argc, char **argv) {
         for(unsigned long i = 0; i < args.size() - 1; i++){
             full_path1 = path + args.at(i);
             full_path2 = path + args.at(args.size() - 1) +"/"+ args.at(i);
-
-            printf("string1: %s\n", full_path1.c_str());
-            printf("string2: %s\n", full_path2.c_str());
 
             if( get_file_status(full_path1) == -1){
                 printf("mv: cannot stat '%s': No such file or directory\n",args.at(i).c_str());
